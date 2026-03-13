@@ -1,0 +1,8 @@
+numpy
+torch
+matplotlib
+scikit-learn
+tqdm
+datasets
+transformers
+tokenizers

@@ -1,0 +1,139 @@
+\documentclass{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{hyperref}
+
+\title{IFT6135 - Assignment 2 Report}
+\author{Guillaume Genois, 20248507}
+\date{March 20, 2026}
+
+\begin{document}
+
+\maketitle
+
+%══════════════════════════════════════════════════════════════════════════════
+\section*{Problem 2: Training Sequential Models}
+%══════════════════════════════════════════════════════════════════════════════
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection*{Question 1: Learning curves (6 pts)}
+
+For each of the 8 experiments, the training loss and validation loss/accuracy
+are plotted over training iterations.
+
+% TODO: Add 8 learning curve figures (one per experiment or grouped).
+% Example figure template:
+%
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=\linewidth]{exp1_curves.png}
+%   \caption{Experiment \textbf{1}: Training loss (left) and validation
+%            loss/accuracy (right) over training iterations.}
+%   \label{fig:exp1_curves}
+% \end{figure}
+
+\textit{TODO: Insert learning curve plots for experiments 1--8.}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection*{Question 2: Summary table (5 pts)}
+
+\begin{table}[H]
+  \centering
+  \caption{Summary of train and validation performance for all 8 experiments.
+           Best validation result is shown in \textbf{bold}. ``Train time''
+           is the total wall-clock training time; ``Eval time'' is the time
+           to evaluate the model on the validation set.}
+  \label{tab:summary}
+  \begin{tabular}{clrrrrr}
+    \toprule
+    \textbf{Exp.} & Architecture & Train Acc & Val Acc & Train Loss & Train Time & Eval Time \\
+    \midrule
+    \textbf{1} & TODO & -- & -- & -- & -- & -- \\
+    \textbf{2} & TODO & -- & -- & -- & -- & -- \\
+    \textbf{3} & TODO & -- & -- & -- & -- & -- \\
+    \textbf{4} & TODO & -- & -- & -- & -- & -- \\
+    \textbf{5} & TODO & -- & -- & -- & -- & -- \\
+    \textbf{6} & TODO & -- & -- & -- & -- & -- \\
+    \textbf{7} & TODO & -- & -- & -- & -- & -- \\
+    \textbf{8} & TODO & -- & -- & -- & -- & -- \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection*{Question 3: Wall-clock time vs.\ generalization (2 pts)}
+
+\textit{TODO: Among the 8 configurations, which would you use if you were most
+concerned with wall-clock time? With generalization performance? Justify.}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection*{Question 4: Impact of dropout (3 pts)}
+
+\textit{TODO: Compare experiments \textbf{1} and \textbf{2}. What was the
+impact of having dropout?}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection*{Question 5: Encoder vs.\ Encoder-Decoder (3 pts)}
+
+\textit{TODO: Compare experiments \textbf{2} and \textbf{3}. Are there
+benefits of having an Encoder-Decoder network instead of just an Encoder?
+Speculate as to why or why not.}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection*{Question 6: Impact of soft-attention (3 pts)}
+
+\textit{TODO: Compare experiments \textbf{3} and \textbf{4}. What was the
+impact of training the GRU network with soft-attention?}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection*{Question 7: Transformer experiments (3 pts)}
+
+\textit{TODO: In experiments \textbf{5}, \textbf{6}, \textbf{7} and
+\textbf{8}, you trained or finetuned a Transformer. Given the recent high
+profile Transformer-based models, are the results as you expected? Speculate
+as to why or why not.}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection*{Question 8: GPU memory usage (3 pts)}
+
+% TODO: Add GPU memory table
+%
+% \begin{table}[H]
+%   \centering
+%   \caption{Average steady-state GPU memory usage for each experiment.}
+%   \label{tab:gpu_memory}
+%   \begin{tabular}{clr}
+%     \toprule
+%     \textbf{Exp.} & Architecture & GPU Memory (MB) \\
+%     \midrule
+%     \textbf{1} & TODO & -- \\
+%     ...
+%     \bottomrule
+%   \end{tabular}
+% \end{table}
+
+\textit{TODO: For each experiment configuration, measure the average
+steady-state GPU memory usage. Comment about the GPU memory footprints of each
+model, discussing reasons behind increased or decreased memory consumption
+where applicable.}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection*{Question 9: Learning curve analysis (7 pts)}
+
+\textit{TODO: Comment on the learning curve behavior of the various models
+trained, under different hyper-parameter settings. Did a particular class of
+models over/underfit more easily than the others? Exhibited instabilities in
+training? Can you make an informed guess of the various steps a practitioner
+can take to prevent over/under-fitting or instability in this case?}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection*{Question 10: Cross Attention vs.\ Self Attention (5 pts)}
+
+\textit{TODO: Give a high-level overview of what an attention mechanism is,
+and go into each attention mechanism (Self, Cross), and their differences.
+Write two paragraphs total.}
+
+\end{document}
