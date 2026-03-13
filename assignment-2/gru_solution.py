@@ -57,7 +57,18 @@ class GRU(nn.Module):
         # ==========================
         # TODO: Write your code here
         # ==========================
-        pass
+        batch_size, sequence_length, input_size = inputs.shape
+        hidden_size = self.hidden_size
+        hidden_states = hidden_states.squeeze(0)
+        outputs = torch.zeros(batch_size, sequence_length, hidden_size, dtype=inputs.dtype, device=inputs.device)
+        for t in range(sequence_length):
+            x_t = inputs[:, t, :]
+            r_t = torch.sigmoid(x_t @ self.w_ir.T + self.b_ir + hidden_states @ self.w_hr.T + self.b_hr)
+            z_t = torch.sigmoid(x_t @ self.w_iz.T + self.b_iz + hidden_states @ self.w_hz.T + self.b_hz)
+            n_t = torch.tanh(x_t @ self.w_in.T + self.b_in + r_t * (hidden_states @ self.w_hn.T + self.b_hn))
+            hidden_states = (1 - z_t) * n_t + z_t * hidden_states
+            outputs[:, t, :] = hidden_states
+        return outputs, hidden_states.unsqueeze(0)
 
 class Attn(nn.Module):
     def __init__(
@@ -104,7 +115,30 @@ class Attn(nn.Module):
         # ==========================
         # TODO: Write your code here
         # ==========================
-        pass
+        # hidden_states: (num_layers, batch, hidden) -> use last layer, expand to seq_len
+        h = hidden_states[-1].unsqueeze(1).expand_as(inputs)  # (batch, seq_len, hidden)
+
+        # 1. Concatenate encoder outputs and decoder hidden state
+        combined = torch.cat((inputs, h), dim=2)  # (batch, seq_len, hidden*2)
+
+        # 2. First linear + tanh
+        energy = self.tanh(self.W(combined))  # (batch, seq_len, hidden)
+
+        # 3. Second linear as multiply and sum: element-wise multiply with V weight, then sum
+        # V.weight: (hidden, hidden), apply to energy then sum over last dim
+        x_attn = (self.V.weight * energy).sum(dim=2, keepdim=True)  # (batch, seq_len, 1)
+
+        # 4. Apply mask before softmax (set padding positions to -inf)
+        if mask is not None:
+            x_attn = x_attn.masked_fill(mask.unsqueeze(2) == 0, float('-inf'))
+
+        # 5. Softmax over sequence dimension
+        x_attn = self.softmax(x_attn)  # (batch, seq_len, 1)
+
+        # 6. Elementwise multiply attention weights with encoder outputs
+        outputs = inputs * x_attn  # (batch, seq_len, hidden)
+
+        return outputs, x_attn
 
 
 class Encoder(nn.Module):
@@ -161,7 +195,23 @@ class Encoder(nn.Module):
         # ==========================
         # TODO: Write your code here
         # ==========================
-        pass
+        # 1. Embed and apply dropout
+        x = self.embedding(inputs)
+        x = self.dropout(x)
+
+        # 2. Run bidirectional GRU
+        # x: (batch_size, seq_len, 2*hidden_size), h: (num_layers*2, batch_size, hidden_size)
+        x, hidden_states = self.rnn(x, hidden_states)
+
+        # 3. Sum forward and backward directions for outputs
+        # Reshape (batch, seq, 2*hidden) -> (batch, seq, 2, hidden) then sum dim=2
+        x = x.view(x.shape[0], x.shape[1], 2, self.hidden_size).sum(dim=2)
+
+        # 4. Sum forward and backward directions for hidden states
+        # (num_layers*2, batch, hidden) -> (num_layers, 2, batch, hidden) then sum dim=1
+        hidden_states = hidden_states.view(self.num_layers, 2, -1, self.hidden_size).sum(dim=1)
+
+        return x, hidden_states
 
     def initial_states(self, batch_size, device=None):
         if device is None:
@@ -227,7 +277,17 @@ class DecoderAttn(nn.Module):
         # ==========================
         # TODO: Write your code here
         # ==========================
-        pass
+        # 1. Apply dropout to encoder outputs
+        x = self.dropout(inputs)
+
+        # 2. Apply attention if enabled
+        if self.mlp_attn is not None:
+            x, _ = self.mlp_attn(x, hidden_states, mask)
+
+        # 3. Feed attended input and hidden state into GRU
+        x, hidden_states = self.rnn(x, hidden_states)
+
+        return x, hidden_states
 
 
 class EncoderDecoder(nn.Module):
