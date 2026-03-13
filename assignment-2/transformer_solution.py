@@ -38,7 +38,13 @@ class LayerNorm(nn.Module):
         # ==========================
         # TODO: Write your code here
         # ==========================
-        pass
+        # Compute mean and biased variance over the last dimension
+        mean = inputs.mean(dim=-1, keepdim=True)
+        var = inputs.var(dim=-1, keepdim=True, unbiased=False)
+
+        # Normalize, scale, and shift
+        outputs = (inputs - mean) / torch.sqrt(var + self.eps) * self.weight + self.bias
+        return outputs
 
     def reset_parameters(self):
         nn.init.ones_(self.weight)
