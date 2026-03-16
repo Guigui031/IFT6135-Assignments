@@ -1,3 +1,6 @@
+# Guillaume Genois, 20248507
+# March 20, 2026
+ 
 import numpy as np
 import torch
 import torch.nn as nn
@@ -82,7 +85,7 @@ class Attn(nn.Module):
 
         self.W = nn.Linear(hidden_size*2, hidden_size)
 
-        self.V = nn.Linear(hidden_size, hidden_size)
+        self.V = nn.Linear(hidden_size, 1, bias=False)
 
         self.tanh = nn.Tanh()
         self.relu = nn.ReLU()
