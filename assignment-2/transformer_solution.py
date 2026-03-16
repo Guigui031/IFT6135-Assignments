@@ -1,3 +1,6 @@
+# Guillaume Genois, 20248507
+# March 20, 2026
+ 
 import numpy as np
 import torch
 import torch.nn as nn
@@ -56,10 +59,15 @@ class MultiHeadedAttention(nn.Module):
         super().__init__()
         self.head_size = head_size
         self.num_heads = num_heads
+        embed_dim = head_size * num_heads
 
         # ==========================
         # TODO: Write your code here
         # ==========================
+        self.W_Q = nn.Linear(embed_dim, embed_dim)
+        self.W_K = nn.Linear(embed_dim, embed_dim)
+        self.W_V = nn.Linear(embed_dim, embed_dim)
+        self.W_O = nn.Linear(embed_dim, embed_dim)
 
     def get_attention_weights(self, queries, keys, mask=None):
         """Compute the attention weights.
@@ -96,7 +104,17 @@ class MultiHeadedAttention(nn.Module):
         # ==========================
         # TODO: Write your code here
         # ==========================
-        pass
+        # Q * K^T / sqrt(head_size)
+        scores = torch.matmul(queries, keys.transpose(-2, -1)) / math.sqrt(self.head_size)
+
+        # Apply mask: set padded positions to -inf so softmax gives 0
+        if mask is not None:
+            # mask shape: (batch_size, sequence_length) -> (batch_size, 1, 1, sequence_length)
+            mask = mask.unsqueeze(1).unsqueeze(2)
+            scores = scores.masked_fill(mask == 0, float('-inf'))
+
+        attention_weights = F.softmax(scores, dim=-1)
+        return attention_weights
 
     def apply_attention(self, queries, keys, values, mask=None):
         """Apply the attention.
@@ -143,7 +161,10 @@ class MultiHeadedAttention(nn.Module):
         # ==========================
         # TODO: Write your code here
         # ==========================
-        pass
+        weights = self.get_attention_weights(queries, keys, mask)
+        attended_values = torch.matmul(weights, values)
+        outputs = self.merge_heads(attended_values)
+        return outputs
 
     def split_heads(self, tensor):
         """Split the head vectors.
@@ -172,7 +193,12 @@ class MultiHeadedAttention(nn.Module):
         # ==========================
         # TODO: Write your code here
         # ==========================
-        pass
+        batch_size, seq_len, _ = tensor.shape
+        dim = tensor.shape[-1] // self.num_heads
+        # Reshape: (B, T, num_heads * dim) -> (B, T, num_heads, dim)
+        tensor = tensor.view(batch_size, seq_len, self.num_heads, dim)
+        # Transpose: (B, T, num_heads, dim) -> (B, num_heads, T, dim)
+        return tensor.transpose(1, 2)
 
     def merge_heads(self, tensor):
         """Merge the head vectors.
@@ -200,7 +226,11 @@ class MultiHeadedAttention(nn.Module):
         # ==========================
         # TODO: Write your code here
         # ==========================
-        pass
+        batch_size, num_heads, seq_len, dim = tensor.shape
+        # Transpose: (B, num_heads, T, dim) -> (B, T, num_heads, dim)
+        tensor = tensor.transpose(1, 2)
+        # Reshape: (B, T, num_heads, dim) -> (B, T, num_heads * dim)
+        return tensor.contiguous().view(batch_size, seq_len, num_heads * dim)
 
     def forward(self, hidden_states, mask=None):
         """Multi-headed attention.
@@ -239,7 +269,13 @@ class MultiHeadedAttention(nn.Module):
         # ==========================
         # TODO: Write your code here
         # ==========================
-        pass
+        Q = self.split_heads(self.W_Q(hidden_states))
+        K = self.split_heads(self.W_K(hidden_states))
+        V = self.split_heads(self.W_V(hidden_states))
+
+        attended = self.apply_attention(Q, K, V, mask)
+        output = self.W_O(attended)
+        return output
 
 class PostNormAttentionBlock(nn.Module):
 
@@ -310,7 +346,14 @@ class PreNormAttentionBlock(nn.Module):
         # ==========================
         # TODO: Write your code here
         # ==========================
-        pass
+        # Pre-norm: LayerNorm before attention, then residual
+        attention_outputs = self.attn(self.layer_norm_1(x), mask)
+        x = x + attention_outputs
+
+        # Pre-norm: LayerNorm before feed-forward, then residual
+        outputs = self.linear(self.layer_norm_2(x))
+        outputs = x + outputs
+        return outputs
 
 
 
@@ -390,10 +433,20 @@ class Transformer(nn.Module):
         # ==========================
         # TODO: Write your code here
         # ==========================
+        x = self.dropout(x)
 
+        # Update mask: prepend a 1 for the CLS token (always attended to)
+        if mask is not None:
+            cls_mask = torch.ones(B, 1, device=mask.device, dtype=mask.dtype)
+            mask = torch.cat([cls_mask, mask], dim=1)
+
+        for block in self.transformer:
+            x = block(x, mask)
 
         # Take the cls token representation and send it to mlp_head
         # ==========================
         # TODO: Write your code here
         # ==========================
-        pass
+        cls_output = x[:, 0]
+        output = self.mlp_head(cls_output)
+        return output
