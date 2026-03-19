@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/guill/GitHub/IFT6135-Assignments/assignment-2 -type f -name *.md -o -name *.txt -o -name *.csv -o -name *.json -o -name *.log -o -name *.tex -o -name *.ipynb -o -name *.png -o -name *.jpg)",
+      "Bash(find /c/Users/guill/GitHub/IFT6135-Assignments/assignment-2 -maxdepth 3 -type f \\\\\\(-name *.py -o -name *.ipynb -o -name *.md -o -name *.pdf -o -name *.tex -o -name *.csv -o -name *.json -o -name *.png -o -name *.txt \\\\\\) -not -path */venv/*)",
+      "Bash(find /c/Users/guill/GitHub/IFT6135-Assignments/assignment-2/assignment -type f -not -path */data/*)"
+    ]
+  }
+}

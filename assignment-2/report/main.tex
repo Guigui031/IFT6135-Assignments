@@ -14,126 +14,144 @@
 
 \maketitle
 
-%══════════════════════════════════════════════════════════════════════════════
+%==============================================================================
 \section*{Problem 2: Training Sequential Models}
-%══════════════════════════════════════════════════════════════════════════════
+%==============================================================================
 
-% ─────────────────────────────────────────────────────────────────────────────
+% -----------------------------------------------------------------------------
 \subsection*{Question 1: Learning curves (6 pts)}
 
-For each of the 8 experiments, the training loss and validation loss/accuracy
-are plotted over training iterations.
+Figure~\ref{fig:learning_curves} shows the training loss, validation loss, and validation accuracy over training iterations for all 8 experiments. Each subplot corresponds to one experiment configuration trained on the Yelp Polarity sentiment analysis task.
 
-% TODO: Add 8 learning curve figures (one per experiment or grouped).
-% Example figure template:
-%
-% \begin{figure}[H]
-%   \centering
-%   \includegraphics[width=\linewidth]{exp1_curves.png}
-%   \caption{Experiment \textbf{1}: Training loss (left) and validation
-%            loss/accuracy (right) over training iterations.}
-%   \label{fig:exp1_curves}
-% \end{figure}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{q1_learning_curves.png}
+  \caption{Learning curves (train loss, validation loss, validation accuracy) over training iterations for all 8 experiments. Each subplot shows one experiment configuration on the Yelp Polarity sentiment analysis task. The best validation accuracy achieved is annotated in each subplot. The $x$-axis represents training iterations scaled by the logging frequency.}
+  \label{fig:learning_curves}
+\end{figure}
 
-\textit{TODO: Insert learning curve plots for experiments 1--8.}
-
-% ─────────────────────────────────────────────────────────────────────────────
+% -----------------------------------------------------------------------------
 \subsection*{Question 2: Summary table (5 pts)}
 
 \begin{table}[H]
   \centering
-  \caption{Summary of train and validation performance for all 8 experiments.
-           Best validation result is shown in \textbf{bold}. ``Train time''
-           is the total wall-clock training time; ``Eval time'' is the time
-           to evaluate the model on the validation set.}
+  \caption{Summary of results for all 8 experiments. ``Best Val Acc'' is the best validation accuracy across all training iterations. ``Final Train Loss'' is the training loss at the last epoch. ``Train Time'' is the total wall-clock training time. ``Eval Time'' is the per-epoch evaluation time. Params is the number of trainable parameters. The best validation accuracy is shown in \textbf{bold}.}
   \label{tab:summary}
-  \begin{tabular}{clrrrrr}
+  \begin{tabular}{clccccc}
     \toprule
-    \textbf{Exp.} & Architecture & Train Acc & Val Acc & Train Loss & Train Time & Eval Time \\
+    \textbf{Exp.} & Architecture & Params & Best Val Acc & Final Train Loss & Train Time (min) & Eval Time (s) \\
     \midrule
-    \textbf{1} & TODO & -- & -- & -- & -- & -- \\
-    \textbf{2} & TODO & -- & -- & -- & -- & -- \\
-    \textbf{3} & TODO & -- & -- & -- & -- & -- \\
-    \textbf{4} & TODO & -- & -- & -- & -- & -- \\
-    \textbf{5} & TODO & -- & -- & -- & -- & -- \\
-    \textbf{6} & TODO & -- & -- & -- & -- & -- \\
-    \textbf{7} & TODO & -- & -- & -- & -- & -- \\
-    \textbf{8} & TODO & -- & -- & -- & -- & -- \\
+    \textbf{1} & GRU, no dropout, enc only  & 8.6M & \textbf{0.944} & 0.159 & 15.4 & 0.18 \\
+    \textbf{2} & GRU, dropout, enc only     & 8.6M & 0.899 & 0.204 & 15.5 & 0.20 \\
+    \textbf{3} & GRU, dropout, enc-dec      & 9.0M & 0.886 & 0.187 & 20.7 & 0.22 \\
+    \textbf{4} & GRU, dropout, enc-dec, attn & 9.1M & \textbf{0.944} & 0.172 & 23.1 & 0.23 \\
+    \textbf{5} & Transformer 2L prenorm     & 8.7M & 0.923 & 0.242 & 40.4 & 0.34 \\
+    \textbf{6} & Transformer 4L prenorm     & 9.5M & 0.918 & 0.237 & 75.1 & 0.56 \\
+    \textbf{7} & Transformer 2L postnorm    & 8.7M & 0.919 & 0.238 & 40.5 & 0.34 \\
+    \textbf{8} & Pretrained BERT (2 epochs) & 1.5K$^*$ & 0.904 & 0.276 & 173.0 & 8.09 \\
+    \bottomrule
+  \end{tabular}
+  \vspace{0.3em}
+  \small{$^*$Only the classification head parameters (1,538) are fine-tuned; the full BERT model has $\sim$110M parameters.}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\subsection*{Question 3: Wall-clock time vs.\ generalization (2 pts)}
+
+If most concerned with \textbf{wall-clock time}, experiments \textbf{1} or \textbf{2} (GRU encoder-only) are the best choices at approximately 15.4--15.5 minutes of total training time. Among these, experiment \textbf{1} also achieves the highest validation accuracy (0.944), making it excellent for both time and performance. GRU encoder-only models are fast because they process the sequence in a single pass with no decoder overhead.
+
+If most concerned with \textbf{generalization performance}, experiments \textbf{1} and \textbf{4} are tied at 0.944 best validation accuracy. Experiment \textbf{4} (GRU encoder-decoder with attention) is arguably the more robust choice since it uses dropout regularization, which may generalize better to unseen data distributions despite similar peak validation accuracy.
+
+% -----------------------------------------------------------------------------
+\subsection*{Question 4: Impact of dropout (3 pts)}
+
+Comparing experiment \textbf{1} (no dropout) and experiment \textbf{2} (with dropout), dropout had a significant \textit{negative} impact on best validation accuracy, reducing it from 0.944 to 0.899. The training loss for experiment \textbf{2} remains higher (0.204 vs.\ 0.159), as expected since dropout prevents the model from fitting the training data as tightly.
+
+Interestingly, the validation loss for experiment \textbf{2} is much higher and noisier than experiment \textbf{1}. This suggests that for this particular encoder-only GRU architecture and dataset, the dropout rate may be too aggressive, excessively regularizing the model and preventing it from learning useful representations. Without dropout, the GRU encoder-only model does not appear to severely overfit---the validation accuracy continues to improve throughout training and the train--val loss gap remains modest, indicating that dropout is unnecessary for this configuration. In other words, the model capacity is well-matched to the task complexity, and the additional regularization from dropout is detrimental rather than helpful.
+
+% -----------------------------------------------------------------------------
+\subsection*{Question 5: Encoder vs.\ Encoder-Decoder (3 pts)}
+
+Comparing experiment \textbf{2} (encoder-only, best val acc 0.899) and experiment \textbf{3} (encoder-decoder without attention, best val acc 0.886), the encoder-decoder network actually performs \textit{worse} than the encoder-only model. Training time also increases from 15.5 to 20.7 minutes.
+
+This is likely because, for the sentiment classification task, the encoder-decoder architecture introduces unnecessary complexity. In a classification setting, the encoder already produces a representation that captures the full input meaning. The decoder must then reconstruct or re-process this compressed representation without the benefit of attention, essentially creating an information bottleneck. The fixed-size hidden state passed from encoder to decoder cannot retain all the relevant information from the full input sequence (length 256), leading to information loss. Additionally, the added decoder parameters increase the model capacity and training difficulty without a corresponding benefit, which can slow convergence and slightly degrade performance---especially under dropout regularization.
+
+% -----------------------------------------------------------------------------
+\subsection*{Question 6: Impact of soft-attention (3 pts)}
+
+Comparing experiment \textbf{3} (encoder-decoder without attention, best val acc 0.886) and experiment \textbf{4} (encoder-decoder with soft attention, best val acc 0.944), the addition of soft attention provides a dramatic improvement of approximately 5.8 percentage points in validation accuracy.
+
+The attention mechanism addresses the information bottleneck problem of the plain encoder-decoder: instead of compressing the entire input into a single hidden vector, the decoder can attend to all encoder hidden states at each step. This allows the model to focus on the most relevant parts of the input for the classification decision. The improvement is substantial and brings the encoder-decoder with attention to the same performance level as the best GRU model (experiment \textbf{1}). The training time only increases modestly from 20.7 to 23.1 minutes, making attention a highly cost-effective addition.
+
+% -----------------------------------------------------------------------------
+\subsection*{Question 7: Transformer experiments (3 pts)}
+
+In experiments \textbf{5} (2-layer prenorm, 0.923), \textbf{6} (4-layer prenorm, 0.918), \textbf{7} (2-layer postnorm, 0.919), and \textbf{8} (pretrained BERT, 0.904), the Transformer models achieve solid but not top-tier performance compared to the best GRU models (0.944 for experiments \textbf{1} and \textbf{4}).
+
+These results are somewhat surprising given the dominance of Transformer-based models in modern NLP. However, several factors explain this:
+\begin{itemize}
+  \item \textbf{Scale:} The Transformers used here are very small (2--4 layers) compared to models like BERT-base (12 layers) or GPT (dozens of layers). Transformers typically shine at larger scales where self-attention can capture complex long-range dependencies.
+  \item \textbf{Task simplicity:} Sentiment analysis on Yelp is a relatively straightforward binary classification task. GRUs, especially with attention, can handle such tasks effectively without the overhead of multi-head self-attention.
+  \item \textbf{Data and sequence length:} With fixed sequence length of 256 and limited training epochs (5), the Transformer may not have enough data exposure to fully leverage its capacity.
+  \item \textbf{BERT performance:} BERT (exp.\ \textbf{8}) achieves only 0.904 with 2 epochs of fine-tuning, which could likely improve with more epochs or learning rate tuning. Its pretrained representations are powerful but fine-tuning is still needed to adapt to the specific task.
+\end{itemize}
+
+Additionally, adding more layers (experiment \textbf{6}, 4 layers) does not improve over 2 layers (experiment \textbf{5}), suggesting that at this small scale, deeper models face optimization difficulties or have excess capacity for this task.
+
+% -----------------------------------------------------------------------------
+\subsection*{Question 8: GPU memory usage (3 pts)}
+
+\begin{table}[H]
+  \centering
+  \caption{Peak GPU memory usage for each experiment. Memory values are reported as peak allocation during training (MB).}
+  \label{tab:gpu_memory}
+  \begin{tabular}{clr}
+    \toprule
+    \textbf{Exp.} & Architecture & Peak GPU Memory (MB) \\
+    \midrule
+    \textbf{1} & GRU, no dropout, enc only       & 4,500 \\
+    \textbf{2} & GRU, dropout, enc only           & 4,532 \\
+    \textbf{3} & GRU, dropout, enc-dec            & 4,539 \\
+    \textbf{4} & GRU, dropout, enc-dec, attn      & 4,941 \\
+    \textbf{5} & Transformer 2L prenorm           & 5,626 \\
+    \textbf{6} & Transformer 4L prenorm           & 10,395 \\
+    \textbf{7} & Transformer 2L postnorm          & 5,427 \\
+    \textbf{8} & Pretrained BERT                  & 4,697 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-% ─────────────────────────────────────────────────────────────────────────────
-\subsection*{Question 3: Wall-clock time vs.\ generalization (2 pts)}
+The GRU models (experiments \textbf{1}--\textbf{4}) have the lowest memory footprints (4,500--4,941~MB), since RNNs process sequences step-by-step and only need to store the current hidden state during the forward pass. Adding the encoder-decoder architecture and attention increases memory slightly due to storing all encoder hidden states for the attention computation.
 
-\textit{TODO: Among the 8 configurations, which would you use if you were most
-concerned with wall-clock time? With generalization performance? Justify.}
+The 2-layer Transformers (experiments \textbf{5} and \textbf{7}) use approximately 5,400--5,600~MB, which is higher than GRUs because self-attention requires computing and storing $T \times T$ attention matrices (where $T=256$), resulting in quadratic memory scaling with sequence length.
 
-% ─────────────────────────────────────────────────────────────────────────────
-\subsection*{Question 4: Impact of dropout (3 pts)}
+Experiment \textbf{6} (4-layer Transformer) nearly doubles the memory to 10,395~MB compared to the 2-layer versions, since each additional Transformer layer adds attention matrices, intermediate activations, and feedforward network states that must be stored for backpropagation.
 
-\textit{TODO: Compare experiments \textbf{1} and \textbf{2}. What was the
-impact of having dropout?}
+Experiment \textbf{8} (BERT) uses 4,697~MB, which is relatively modest because only the classification head is fine-tuned; the pretrained BERT weights are frozen or only lightly updated, reducing the need to store full gradient computation graphs for all 110M parameters.
 
-% ─────────────────────────────────────────────────────────────────────────────
-\subsection*{Question 5: Encoder vs.\ Encoder-Decoder (3 pts)}
-
-\textit{TODO: Compare experiments \textbf{2} and \textbf{3}. Are there
-benefits of having an Encoder-Decoder network instead of just an Encoder?
-Speculate as to why or why not.}
-
-% ─────────────────────────────────────────────────────────────────────────────
-\subsection*{Question 6: Impact of soft-attention (3 pts)}
-
-\textit{TODO: Compare experiments \textbf{3} and \textbf{4}. What was the
-impact of training the GRU network with soft-attention?}
-
-% ─────────────────────────────────────────────────────────────────────────────
-\subsection*{Question 7: Transformer experiments (3 pts)}
-
-\textit{TODO: In experiments \textbf{5}, \textbf{6}, \textbf{7} and
-\textbf{8}, you trained or finetuned a Transformer. Given the recent high
-profile Transformer-based models, are the results as you expected? Speculate
-as to why or why not.}
-
-% ─────────────────────────────────────────────────────────────────────────────
-\subsection*{Question 8: GPU memory usage (3 pts)}
-
-% TODO: Add GPU memory table
-%
-% \begin{table}[H]
-%   \centering
-%   \caption{Average steady-state GPU memory usage for each experiment.}
-%   \label{tab:gpu_memory}
-%   \begin{tabular}{clr}
-%     \toprule
-%     \textbf{Exp.} & Architecture & GPU Memory (MB) \\
-%     \midrule
-%     \textbf{1} & TODO & -- \\
-%     ...
-%     \bottomrule
-%   \end{tabular}
-% \end{table}
-
-\textit{TODO: For each experiment configuration, measure the average
-steady-state GPU memory usage. Comment about the GPU memory footprints of each
-model, discussing reasons behind increased or decreased memory consumption
-where applicable.}
-
-% ─────────────────────────────────────────────────────────────────────────────
+% -----------------------------------------------------------------------------
 \subsection*{Question 9: Learning curve analysis (7 pts)}
 
-\textit{TODO: Comment on the learning curve behavior of the various models
-trained, under different hyper-parameter settings. Did a particular class of
-models over/underfit more easily than the others? Exhibited instabilities in
-training? Can you make an informed guess of the various steps a practitioner
-can take to prevent over/under-fitting or instability in this case?}
+Examining the learning curves across all experiments, several patterns emerge:
 
-% ─────────────────────────────────────────────────────────────────────────────
+\textbf{GRU models (1--4):} The GRU encoder-only models (experiments \textbf{1} and \textbf{2}) exhibit the smoothest training curves. Experiment \textbf{1} (no dropout) shows a steadily decreasing training loss and steadily increasing validation accuracy, with the train-val gap remaining modest even after 5 epochs---suggesting the model capacity is well-suited to this task and does not severely overfit. Experiment \textbf{2} (with dropout) shows a notably higher and noisier validation loss, with the training loss converging more slowly. The encoder-decoder models (experiments \textbf{3} and \textbf{4}) show more volatile validation curves early in training, particularly experiment \textbf{3} which exhibits large spikes in validation loss during the first epoch, likely due to the decoder struggling to compress information through the bottleneck before settling.
+
+\textbf{Overfitting patterns:} Experiment \textbf{1} (GRU, no dropout) achieves the lowest training loss (0.159) but its validation accuracy remains high (0.944), suggesting it is fitting the data well without severe overfitting---at least within 5 epochs. In contrast, the dropout models (\textbf{2}--\textbf{4}) have higher training losses due to regularization. The Transformers (\textbf{5}--\textbf{7}) show a larger train-val gap with training loss around 0.24 but validation accuracy plateauing near 0.92, suggesting mild underfitting relative to the GRUs.
+
+\textbf{Training instabilities:} Experiment \textbf{3} (encoder-decoder, no attention) exhibits the most instability, with sharp spikes in validation loss and accuracy during early training. This is likely due to the information bottleneck in the encoder-decoder without attention, where the decoder relies entirely on the final hidden state. Experiment \textbf{2} also shows a noticeable instability at the epoch boundary (around iteration 46), where validation accuracy drops sharply before recovering. The Transformer models show relatively smooth training curves but with slower initial convergence compared to the GRUs.
+
+\textbf{Practical recommendations:}
+\begin{itemize}
+  \item \textit{Preventing overfitting:} While dropout helped in the encoder-decoder setting (comparing experiments \textbf{3} vs.\ the non-dropout baselines conceptually), it was counterproductive for the encoder-only GRU. Practitioners should tune dropout rates carefully and consider alternatives like weight decay or early stopping based on validation performance.
+  \item \textit{Preventing underfitting:} For Transformer models at this small scale, underfitting can be addressed by training for more epochs, using learning rate warmup schedules, or increasing model size (though experiment \textbf{6} shows diminishing returns with 4 layers).
+  \item \textit{Addressing instability:} For encoder-decoder models, adding attention (as in experiment \textbf{4}) dramatically stabilizes training and improves convergence. Gradient clipping and learning rate warmup can also help with training instabilities.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
 \subsection*{Question 10: Cross Attention vs.\ Self Attention (5 pts)}
 
-\textit{TODO: Give a high-level overview of what an attention mechanism is,
-and go into each attention mechanism (Self, Cross), and their differences.
-Write two paragraphs total.}
+An attention mechanism is a neural network component that allows a model to dynamically focus on different parts of an input when producing an output. At a high level, attention computes a weighted sum of a set of \textit{value} vectors, where the weights are determined by the compatibility (or relevance) between a \textit{query} vector and a set of \textit{key} vectors. This enables the model to selectively attend to the most relevant information rather than compressing everything into a fixed-size representation. The attention weights are typically computed via a scaled dot-product or a learned MLP, followed by a softmax to produce a probability distribution over the input positions.
+
+\textbf{Self-attention}, as used in the Transformer architecture, computes attention where the queries, keys, and values all come from the \textit{same} sequence. Each position in the sequence attends to every other position (including itself), allowing the model to capture dependencies between any two positions regardless of distance. This is particularly powerful for modeling long-range dependencies and enables full parallelization during training, unlike recurrent models. \textbf{Cross-attention} (implemented as soft attention in the GRU encoder-decoder), on the other hand, involves queries from one sequence (the decoder hidden state) attending to keys and values from a \textit{different} sequence (the encoder outputs). This allows the decoder to selectively retrieve relevant information from the encoder at each decoding step. The key difference is the source of the queries versus keys/values: in self-attention, they share the same origin, enabling intra-sequence reasoning; in cross-attention, they come from different sources, enabling inter-sequence information transfer. In practice, self-attention is more general and forms the backbone of Transformer models, while cross-attention is essential for sequence-to-sequence tasks and for connecting encoder and decoder components.
 
 \end{document}
