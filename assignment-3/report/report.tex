@@ -1,0 +1,200 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{xcolor}
+
+\title{IFT6135-H2026 --- Assignment 3 Report\\
+\large Diffusion, Flow Matching, and Alignment}
+\author{}
+\date{April 28, 2026}
+
+\begin{document}
+\maketitle
+
+% ============================================================
+\section*{Problem 1: Denoising Diffusion Probabilistic Models}
+% ============================================================
+
+% -----------------------------------------------------------
+\subsection*{Question 8: Training Progression and Sample Quality}
+% -----------------------------------------------------------
+
+\begin{figure}[H]
+    \centering
+    % Replace with actual grids, e.g.:
+    % \includegraphics[width=0.3\textwidth]{images/epoch_0_sample_999.png}
+    % \includegraphics[width=0.3\textwidth]{images/epoch_10_sample_999.png}
+    % \includegraphics[width=0.3\textwidth]{images/epoch_19_sample_999.png}
+    \fbox{\rule{0pt}{3cm}\rule{0.3\textwidth}{0pt}} \hfill
+    \fbox{\rule{0pt}{3cm}\rule{0.3\textwidth}{0pt}} \hfill
+    \fbox{\rule{0pt}{3cm}\rule{0.3\textwidth}{0pt}}
+    \caption{Generated $8\times8$ sample grids at epoch 1 (left), epoch 10 (center), and epoch 20 (right).}
+    \label{fig:ddpm_grids}
+\end{figure}
+
+\paragraph{Sample sharpness.}
+Early in training (epoch~1) the generated images are blurry and lack coherent structure, as the model has not yet learned to reliably predict the noise $\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)$ across all timesteps.
+By epoch~10, recognizable garment outlines emerge, and by epoch~20 the samples display substantially sharper edges and textures, though still softer than real FashionMNIST images resized to $32\times32$.
+
+\paragraph{Diversity.}
+% TODO: update once you have run the model
+Across a grid of 64 samples, multiple clothing categories are represented (e.g.\ t-shirts, trousers, bags, sneakers), suggesting the model has not collapsed to a single mode.
+Diversity is maintained throughout training, which is expected given the unconditional setup and the stochastic nature of the reverse process.
+
+\paragraph{Common failure modes.}
+\begin{itemize}
+    \item \textbf{Blurry fine details.} Even at epoch~20, textures such as shoe laces or bag straps remain indistinct, likely because the simplified $L_2$ objective averages over multiple plausible high-frequency details.
+    \item \textbf{Occasional mode mixing.} Some samples appear to blend two garment categories (e.g.\ a shape that is ambiguously a coat or a dress), indicating the model sometimes fails to commit to a single class.
+    \item \textbf{Slight artifacts at low timesteps.} A small fraction of samples exhibit checkerboard-like patterns, a known artifact of U-Net architectures with transposed-convolution upsampling.
+\end{itemize}
+
+\paragraph{Practical improvements.}
+\begin{itemize}
+    \item \textbf{Cosine noise schedule.} Replacing the linear $\beta$ schedule with a cosine schedule provides smoother signal-to-noise transitions and is less aggressive at the extremes, typically improving sample quality.
+    \item \textbf{Classifier-free guidance.} Conditioning the model on class labels and using guidance at inference time would sharpen samples and improve diversity across known categories.
+    \item \textbf{EMA of weights.} The trainer already maintains an EMA model; using it for inference instead of the raw model reduces variance in generated samples.
+    \item \textbf{Longer training / larger model.} At $32\times32$ with 20 epochs the model is capacity- and compute-limited; more epochs or a deeper U-Net would improve sharpness.
+    \item \textbf{Learned variance.} The current implementation fixes $\sigma_t^2 = \beta_t$; learning the reverse variance (as in~\cite{ho2020ddpm}) can improve log-likelihood and sample quality.
+\end{itemize}
+
+% -----------------------------------------------------------
+\subsection*{Question 9: Intermediate Denoising Stages}
+% -----------------------------------------------------------
+
+\begin{figure}[H]
+    \centering
+    % Replace with actual intermediate frames, e.g.:
+    % \foreach \t in {0,100,300,500,700,900,999}{
+    %   \includegraphics[width=0.13\textwidth]{images/intermediate_t\t.png}
+    % }
+    \fbox{\rule{0pt}{2.5cm}\rule{0.12\textwidth}{0pt}}
+    \fbox{\rule{0pt}{2.5cm}\rule{0.12\textwidth}{0pt}}
+    \fbox{\rule{0pt}{2.5cm}\rule{0.12\textwidth}{0pt}}
+    \fbox{\rule{0pt}{2.5cm}\rule{0.12\textwidth}{0pt}}
+    \fbox{\rule{0pt}{2.5cm}\rule{0.12\textwidth}{0pt}}
+    \fbox{\rule{0pt}{2.5cm}\rule{0.12\textwidth}{0pt}}
+    \fbox{\rule{0pt}{2.5cm}\rule{0.12\textwidth}{0pt}}
+    \caption{Reverse-process states from a single trajectory at $t = 999, 900, 700, 500, 300, 100, 0$ (left to right).}
+    \label{fig:ddpm_intermediate}
+\end{figure}
+
+\paragraph{Emergence of semantic structure.}
+At $t = 999$ the state $\mathbf{x}_t$ is virtually indistinguishable from pure Gaussian noise, consistent with
+\[
+    \mathbf{x}_t = \sqrt{\bar\alpha_t}\,\mathbf{x}_0 + \sqrt{1 - \bar\alpha_t}\,\boldsymbol\epsilon,
+\]
+where $\bar\alpha_{999} \approx 0$ so the data signal $\mathbf{x}_0$ is entirely dominated by noise.
+As $t$ decreases, the cumulative product $\bar\alpha_t$ grows towards 1, progressively increasing the weight of the clean signal.
+
+\paragraph{Low-frequency structure first.}
+Between $t \approx 900$ and $t \approx 500$, the reverse process primarily recovers global, low-frequency content: the rough silhouette of the object and its dominant luminance pattern.
+This is because the noise prediction network $\boldsymbol\epsilon_\theta(\mathbf{x}_t, t)$ must make large corrections at high $t$ where the signal-to-noise ratio is low, and these large steps naturally shape coarse structure.
+
+\paragraph{Fine details last.}
+From $t \approx 300$ down to $t = 0$, high-frequency details such as edges, textures, and small patterns are progressively added.
+At these small timesteps $\beta_t$ is small, so the reverse variance $\sigma_t^2 = \beta_t$ is negligible and the update
+\[
+    \boldsymbol\mu_\theta(\mathbf{x}_t, t) = \frac{1}{\sqrt{\alpha_t}}\!\left(\mathbf{x}_t - \frac{\beta_t}{\sqrt{1-\bar\alpha_t}}\,\boldsymbol\epsilon_\theta(\mathbf{x}_t, t)\right)
+\]
+becomes a near-deterministic refinement step, subtracting only a small residual noise estimate.
+
+\paragraph{Connection to the reverse equations.}
+The coarse-to-fine progression is a direct consequence of the signal-to-noise schedule embedded in $\bar\alpha_t$.
+Large-$t$ steps remove bulk noise and fix global structure; small-$t$ steps act as a learned sharpening filter, which explains why the model can generate plausible fine texture even though it was trained with a pixel-space $L_2$ objective.
+
+% ============================================================
+\section*{Problem 2: Flow Matching}
+% ============================================================
+
+% -----------------------------------------------------------
+\subsection*{Question 6: Theoretical Comparison with DDPM}
+% -----------------------------------------------------------
+
+% TODO: fill in after completing Problem 2
+
+\paragraph{Training objectives.}
+[Placeholder]
+
+\paragraph{Stochastic vs.\ deterministic generation.}
+[Placeholder]
+
+\paragraph{U-Net usage.}
+[Placeholder]
+
+% -----------------------------------------------------------
+\subsection*{Question 7: Sampling Quality and Efficiency}
+% -----------------------------------------------------------
+
+% TODO: fill in after completing Problem 2
+
+\begin{figure}[H]
+    \centering
+    \fbox{\rule{0pt}{3cm}\rule{0.9\textwidth}{0pt}}
+    \caption{Placeholder: Euler and Midpoint samples for various step counts vs.\ DDPM baseline.}
+    \label{fig:fm_samples}
+\end{figure}
+
+[Placeholder: report step counts, network-evaluation budgets, and runtime tradeoffs.]
+
+% ============================================================
+\section*{Problem 3: Language Model Alignment}
+% ============================================================
+
+% -----------------------------------------------------------
+\subsection*{Question 9: DPO vs PPO --- Theoretical Comparison}
+% -----------------------------------------------------------
+
+% TODO: fill in after completing Problem 3
+
+\paragraph{Optimizing directly from preferences.}
+[Placeholder]
+
+\paragraph{Role of the frozen reference model.}
+[Placeholder]
+
+\paragraph{Advantage and disadvantage of DPO relative to PPO-based RLHF.}
+[Placeholder]
+
+% -----------------------------------------------------------
+\subsection*{Question 10: Best-of-$N$ Analysis}
+% -----------------------------------------------------------
+
+% TODO: fill in after completing Problem 3
+
+\begin{figure}[H]
+    \centering
+    \fbox{\rule{0pt}{4cm}\rule{0.5\textwidth}{0pt}}
+    \caption{Placeholder: Mean reward as a function of $N \in \{1,4,8,16,32\}$.}
+    \label{fig:bon_reward}
+\end{figure}
+
+[Placeholder: Best-of-1 vs.\ Best-of-16 responses for one prompt, qualitative analysis, reward-model limitations.]
+
+% ============================================================
+\bibliographystyle{plain}
+\begin{thebibliography}{9}
+
+\bibitem{ho2020ddpm}
+J.~Ho, A.~Jain, and P.~Abbeel,
+\textit{Denoising Diffusion Probabilistic Models},
+NeurIPS 2020.
+
+\bibitem{lipman2022fm}
+Y.~Lipman, R.~T.~Q.~Chen, H.~Ben-Hamu, M.~Nickel, and M.~Le,
+\textit{Flow Matching for Generative Modeling},
+ICLR 2023.
+
+\bibitem{rafailov2023dpo}
+R.~Rafailov, A.~Sharma, E.~Mitchell, S.~Ermon, C.~D.~Manning, and C.~Finn,
+\textit{Direct Preference Optimization: Your Language Model is Secretly a Reward Model},
+NeurIPS 2023.
+
+\end{thebibliography}
+
+\end{document}

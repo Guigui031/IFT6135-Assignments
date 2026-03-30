@@ -26,8 +26,10 @@ class DenoiseDiffusion:
         # return shapes: both should broadcast correctly with x0
         # ==========================
         # TODO: Write your code here
+        alpha_bar_t = self.gather(self.alpha_bar, t)
+        mean = torch.sqrt(alpha_bar_t) * x0
+        var = 1 - alpha_bar_t
         # ==========================
-        raise NotImplementedError("Implement q_xt_x0 in q1_ddpm.py.")
         # STUDENT TODO END
         return mean, var
 
@@ -44,8 +46,9 @@ class DenoiseDiffusion:
         # return shape: same as x0
         # ==========================
         # TODO: Write your code here
+        mean, var = self.q_xt_x0(x0, t)
+        sample = mean + torch.sqrt(var) * eps
         # ==========================
-        raise NotImplementedError("Implement q_sample in q1_ddpm.py.")
         # STUDENT TODO END
         return sample
 
@@ -58,8 +61,13 @@ class DenoiseDiffusion:
         # return var shape: broadcastable with xt
         # ==========================
         # TODO: Write your code here
+        eps_theta = self.eps_model(xt, t)
+        alpha_t = self.gather(self.alpha, t)
+        alpha_bar_t = self.gather(self.alpha_bar, t)
+        beta_t = self.gather(self.beta, t)
+        mu_theta = (xt - beta_t / torch.sqrt(1 - alpha_bar_t) * eps_theta) / torch.sqrt(alpha_t)
+        var = self.gather(self.sigma2, t)
         # ==========================
-        raise NotImplementedError("Implement p_xt_prev_xt in q1_ddpm.py.")
         # STUDENT TODO END
         return mu_theta, var
 
@@ -77,8 +85,10 @@ class DenoiseDiffusion:
         # return shape: same as xt
         # ==========================
         # TODO: Write your code here
+        mu_theta, var = self.p_xt_prev_xt(xt, t)
+        eps = torch.randn_like(xt)
+        sample = mu_theta + torch.sqrt(var) * eps
         # ==========================
-        raise NotImplementedError("Implement p_sample in q1_ddpm.py.")
         # STUDENT TODO END
         return sample
 
@@ -100,7 +110,9 @@ class DenoiseDiffusion:
         # return: scalar loss tensor
         # ==========================
         # TODO: Write your code here
+        xt = self.q_sample(x0, t, eps=noise)
+        eps_theta = self.eps_model(xt, t)
+        loss = ((noise - eps_theta) ** 2).sum(dim=dim).mean()
         # ==========================
-        raise NotImplementedError("Implement loss in q1_ddpm.py.")
         # STUDENT TODO END
         return loss
