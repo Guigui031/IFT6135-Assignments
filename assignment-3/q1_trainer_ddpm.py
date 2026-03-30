@@ -130,8 +130,10 @@ class Trainer:
                 # self.diffusion.p_sample so that x goes from x_t to x_{t-1}.
                 # ==========================
                 # TODO: Write your code here
+                t = n_steps - 1 - t_
+                t_tensor = x.new_full((x.shape[0],), t, dtype=torch.long)
+                x = self.diffusion.p_sample(x, t_tensor)
                 # ==========================
-                raise NotImplementedError("Implement Trainer.sample in q1_trainer_ddpm.py.")
                 # STUDENT TODO END
 
                 if self.args.nb_save is not None and t_ in saving_steps:
@@ -205,10 +207,10 @@ class Trainer:
             # self.diffusion.p_sample to update x (same logic as Trainer.sample).
             # ==========================
             # TODO: Write your code here
+            t = n_steps - step
+            t_tensor = x.new_full((x.shape[0],), t, dtype=torch.long)
+            x = self.diffusion.p_sample(x, t_tensor)
             # ==========================
-            raise NotImplementedError(
-                "Implement Trainer.generate_intermediate_samples in q1_trainer_ddpm.py."
-            )
             # STUDENT TODO END
 
             if step in steps_to_show:
