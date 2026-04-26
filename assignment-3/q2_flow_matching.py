@@ -1,3 +1,6 @@
+# Guillaume Genois, 20248507
+# April 28, 2026
+
 from typing import Optional
 
 import torch
@@ -31,8 +34,8 @@ class FlowMatching:
         # return shape: same as x0
         # ==========================
         # TODO: Write your code here
+        x_t = (1 - t) * x0 + t * x1
         # ==========================
-        raise NotImplementedError("Implement sample_xt in q2_flow_matching.py.")
         # STUDENT TODO END
         return x_t
 
@@ -44,8 +47,8 @@ class FlowMatching:
         # return shape: same as x0
         # ==========================
         # TODO: Write your code here
+        u_t = x1 - x0
         # ==========================
-        raise NotImplementedError("Implement compute_conditional_velocity in q2_flow_matching.py.")
         # STUDENT TODO END
         return u_t
 
@@ -68,8 +71,11 @@ class FlowMatching:
         # return: scalar loss tensor
         # ==========================
         # TODO: Write your code here
+        x_t = self.sample_xt(x0, noise, t)
+        u_t = self.compute_conditional_velocity(x0, noise)
+        v_pred = self.predict_velocity(x_t, t)
+        loss = ((v_pred - u_t) ** 2).sum(dim=dim).mean()
         # ==========================
-        raise NotImplementedError("Implement loss in q2_flow_matching.py.")
         # STUDENT TODO END
         return loss
 
@@ -82,8 +88,9 @@ class FlowMatching:
         # return shape: same as x_t
         # ==========================
         # TODO: Write your code here
+        t_tensor = torch.tensor(t, device=x_t.device)
+        x_next = x_t + dt * self.predict_velocity(x_t, t_tensor)
         # ==========================
-        raise NotImplementedError("Implement euler_step in q2_flow_matching.py.")
         # STUDENT TODO END
         return x_next
 
@@ -104,8 +111,11 @@ class FlowMatching:
         # return shape: same as x_t
         # ==========================
         # TODO: Write your code here
+        t_tensor = torch.tensor(t, device=x_t.device)
+        x_mid = x_t + (dt / 2) * self.predict_velocity(x_t, t_tensor)
+        t_mid_tensor = torch.tensor(t + dt / 2, device=x_t.device)
+        x_next = x_t + dt * self.predict_velocity(x_mid, t_mid_tensor)
         # ==========================
-        raise NotImplementedError("Implement midpoint_step in q2_flow_matching.py.")
         # STUDENT TODO END
         return x_next
 
