@@ -1,3 +1,6 @@
+# Guillaume Genois, 20248507
+# April 28, 2026
+
 from typing import Dict, Iterable, Optional
 
 import torch
@@ -17,8 +20,9 @@ class RewardModel(nn.Module):
         # Save the transformer backbone and a scalar reward head on self.
         # ==========================
         # TODO: Write your code here
+        self.backbone = AutoModel.from_pretrained(model_name)
+        self.reward_head = nn.Linear(self.backbone.config.hidden_size, 1)
         # ==========================
-        raise NotImplementedError("Implement RewardModel.__init__ in q3_reward_model.py.")
         # STUDENT TODO END
 
     def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
@@ -29,8 +33,13 @@ class RewardModel(nn.Module):
         # return shape: (batch_size,)
         # ==========================
         # TODO: Write your code here
+        outputs = self.backbone(input_ids=input_ids, attention_mask=attention_mask)
+        hidden_states = outputs.last_hidden_state
+        last_token_idx = attention_mask.sum(dim=1) - 1
+        batch_idx = torch.arange(input_ids.size(0), device=input_ids.device)
+        last_hidden = hidden_states[batch_idx, last_token_idx]
+        rewards = self.reward_head(last_hidden).squeeze(-1)
         # ==========================
-        raise NotImplementedError("Implement RewardModel.forward in q3_reward_model.py.")
         # STUDENT TODO END
         return rewards
 
@@ -46,8 +55,8 @@ def compute_preference_loss(
     # return: scalar loss tensor
     # ==========================
     # TODO: Write your code here
+    loss = -F.logsigmoid(rewards_chosen - rewards_rejected).mean()
     # ==========================
-    raise NotImplementedError("Implement compute_preference_loss in q3_reward_model.py.")
     # STUDENT TODO END
     return loss
 
@@ -63,8 +72,8 @@ def compute_reward_accuracy(
     # return: scalar accuracy tensor
     # ==========================
     # TODO: Write your code here
+    accuracy = (rewards_chosen > rewards_rejected).float().mean()
     # ==========================
-    raise NotImplementedError("Implement compute_reward_accuracy in q3_reward_model.py.")
     # STUDENT TODO END
     return accuracy
 
@@ -96,8 +105,11 @@ class RewardModelTrainer:
         # return keys: `loss` and `accuracy`
         # ==========================
         # TODO: Write your code here
+        rewards_chosen = self.model(batch["chosen_input_ids"], batch["chosen_attention_mask"])
+        rewards_rejected = self.model(batch["rejected_input_ids"], batch["rejected_attention_mask"])
+        loss = compute_preference_loss(rewards_chosen, rewards_rejected)
+        accuracy = compute_reward_accuracy(rewards_chosen, rewards_rejected)
         # ==========================
-        raise NotImplementedError("Implement RewardModelTrainer.train_step in q3_reward_model.py.")
         # STUDENT TODO END
         return {"loss": loss, "accuracy": accuracy}
 

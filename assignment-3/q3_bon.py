@@ -1,3 +1,6 @@
+# Guillaume Genois, 20248507
+# April 28, 2026
+
 from typing import List, Tuple
 
 import torch
@@ -95,7 +98,8 @@ def best_of_n_sample(
     #   rewards: all reward scores
     # ==========================
     # TODO: Write your code here
+    best_response, best_reward = select_best_of_n(response_candidates, rewards)
+    best_text = tokenizer.decode(best_response, skip_special_tokens=True)
     # ==========================
-    raise NotImplementedError("Implement best_of_n_sample in q3_bon.py.")
     # STUDENT TODO END
     return best_text, float(best_reward.item()), rewards

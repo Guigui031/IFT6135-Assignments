@@ -1,3 +1,6 @@
+# Guillaume Genois, 20248507
+# April 28, 2026
+
 from typing import Dict, Iterable, Optional, Tuple
 
 import torch
@@ -21,8 +24,14 @@ def compute_log_probs(
     # return shape: (batch_size,)
     # ==========================
     # TODO: Write your code here
+    outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+    shift_logits = outputs.logits[:, :-1, :]
+    shift_labels = input_ids[:, 1:]
+    shift_response_mask = response_mask[:, 1:].float()
+    log_probs = F.log_softmax(shift_logits, dim=-1)
+    token_log_probs = log_probs.gather(2, shift_labels.unsqueeze(-1)).squeeze(-1)
+    sequence_log_probs = (token_log_probs * shift_response_mask).sum(dim=1)
     # ==========================
-    raise NotImplementedError("Implement compute_log_probs in q3_dpo.py.")
     # STUDENT TODO END
     return sequence_log_probs
 
@@ -44,8 +53,12 @@ def compute_dpo_loss(
     #   accuracy: scalar tensor
     # ==========================
     # TODO: Write your code here
+    chosen_logratios = policy_chosen_logps - ref_chosen_logps
+    rejected_logratios = policy_rejected_logps - ref_rejected_logps
+    reward_margin = chosen_logratios - rejected_logratios
+    loss = -F.logsigmoid(beta * reward_margin).mean()
+    accuracy = (reward_margin > 0).float().mean()
     # ==========================
-    raise NotImplementedError("Implement compute_dpo_loss in q3_dpo.py.")
     # STUDENT TODO END
     return loss, reward_margin, accuracy
 
@@ -97,8 +110,39 @@ class DPOTrainer:
         #   metrics: dict with `reward_margin` and `accuracy`
         # ==========================
         # TODO: Write your code here
+        policy_chosen_logps = compute_log_probs(
+            self.policy_model,
+            batch["chosen_input_ids"],
+            batch["chosen_attention_mask"],
+            batch["chosen_response_mask"],
+        )
+        policy_rejected_logps = compute_log_probs(
+            self.policy_model,
+            batch["rejected_input_ids"],
+            batch["rejected_attention_mask"],
+            batch["rejected_response_mask"],
+        )
+        with torch.no_grad():
+            ref_chosen_logps = compute_log_probs(
+                self.reference_model,
+                batch["chosen_input_ids"],
+                batch["chosen_attention_mask"],
+                batch["chosen_response_mask"],
+            )
+            ref_rejected_logps = compute_log_probs(
+                self.reference_model,
+                batch["rejected_input_ids"],
+                batch["rejected_attention_mask"],
+                batch["rejected_response_mask"],
+            )
+        loss, reward_margin, accuracy = compute_dpo_loss(
+            policy_chosen_logps,
+            policy_rejected_logps,
+            ref_chosen_logps,
+            ref_rejected_logps,
+            beta=self.beta,
+        )
         # ==========================
-        raise NotImplementedError("Implement DPOTrainer.compute_loss in q3_dpo.py.")
         # STUDENT TODO END
         metrics = {
             "reward_margin": reward_margin.mean(),
