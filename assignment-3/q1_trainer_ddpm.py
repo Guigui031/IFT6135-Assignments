@@ -1,3 +1,6 @@
+# Guillaume Genois, 20248507
+# April 28, 2026
+
 import copy
 import os
 
